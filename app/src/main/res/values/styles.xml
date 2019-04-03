@@ -22,7 +22,10 @@
         <item name="itemBackground">@color/blue_light</item>
         <item name="submitBackground">@color/app_green</item>
     </style>
-
+    <style name="CustomSearchView"
+        parent="@android:style/Widget.Holo">
+        <item name="android:textColorHint">#CCCCCC</item>
+    </style>
     <style name="AppTheme.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>

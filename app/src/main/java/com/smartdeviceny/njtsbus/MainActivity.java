@@ -1,6 +1,8 @@
 package com.smartdeviceny.njtsbus;
 
 import android.Manifest;
+import android.app.SearchManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
@@ -28,6 +30,7 @@ import java.util.List;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SearchView;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -77,6 +80,26 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         initData();
         initView();
+
+        final android.widget.SearchView searchView = (android.widget.SearchView)findViewById(R.id.searchView);
+        searchView.setOnQueryTextListener(new android.widget.SearchView.OnQueryTextListener() {
+            @Override
+            public boolean onQueryTextSubmit(String query) {
+                Snackbar.make(searchView, "Search result " + query + " "  + searchView.getContext(), Snackbar.LENGTH_LONG).setAction("Action", null).show();
+//                Intent intent = new Intent(searchView.getContext(), SearchActivity.class);
+//                intent.setAction(Intent.ACTION_SEARCH);
+//                intent.putExtra(SearchManager.QUERY, query);
+//                startActivity(intent);
+                return false;
+            }
+
+
+            @Override
+            public boolean onQueryTextChange(String s) {
+                Snackbar.make(searchView, "Search Change  " + s, Snackbar.LENGTH_LONG).setAction("Action", null).show();
+                return false;
+            }
+        });
     }
 
     @Override
@@ -128,6 +151,17 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         } else if (id == R.id.nav_manage) {
 
         } else if (id == R.id.nav_share) {
+            SearchManager searchManager = (SearchManager) getSystemService(Context.SEARCH_SERVICE);
+            SearchView searchView = (SearchView)item.getActionView();
+            // Assumes current activity is the searchable activity
+            if(searchView !=null){
+                searchView.setSearchableInfo(searchManager.getSearchableInfo(getComponentName()));
+                searchView.setIconifiedByDefault(false); // Do not iconify the widget; expand it by default
+            }
+            Intent intent = new Intent();
+            intent.setClass(this, SearchableActivity.class);
+            //startActivity(intent);
+
 
         } else if (id == R.id.nav_send) {
 
