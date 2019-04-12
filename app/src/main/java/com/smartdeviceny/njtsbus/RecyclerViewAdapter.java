@@ -18,9 +18,11 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.google.android.material.snackbar.Snackbar;
+import com.smartdeviceny.njtsbus.content_provider.ScheduleContentProvider;
 import com.smartdeviceny.njtsbus.route.RouteDetails;
 import com.smartdeviceny.njtsbus.route.Stop;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -44,6 +46,7 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
     };
     private Context context;
     private List<StopHolder> mItems;
+    private List<StopHolder> filtered = new ArrayList<>();
     private int color = 0;
     private View parentView;
 
@@ -57,9 +60,48 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
         this.context = context;
         mItems = new ArrayList();
     }
-
-    public void setItems(List<Stop> data) {
+    String last_filter = "";
+    public void applyFilters(String filter) {
+        ArrayList<StopHolder> filterStops = new ArrayList<>();
+        String tokens[] = filter.split("\\s+");
+        List<StopHolder> startItems = mItems;
+        if( filter.contains(last_filter) && filtered.size()>0) {
+            startItems = filtered;
+        }
+        for(StopHolder stop:startItems) {
+            String sstr = stop.stop.stop_name + " " + stop.stop.location + " " + stop.stop.stop_code;
+            sstr = sstr.toLowerCase();
+            boolean add = true;
+            if(!sstr.contains(filter.toLowerCase())) {
+                add = false;
+//                for (String s : tokens) {
+//                    if (!sstr.contains(s.toLowerCase())) {
+//                        add = false;
+//                        break;
+//                    }
+//                }
+            }
+            if(add) {
+                filterStops.add(stop);
+            }
+        }
+        last_filter = filter;
+        filtered.clear();
+        filtered.addAll(filterStops);
+    }
+    public void setItems(List<Stop> stops) {
         this.mItems.clear();
+        filtered.clear();
+        this.mItems.addAll(decorateMiles(stops)); //.subList(0, Math.min(sh.size(), 10)));
+        notifyDataSetChanged();
+    }
+    public void setDecoratedItems(List<StopHolder> stops) {
+        this.mItems.clear();
+        filtered.clear();
+        this.mItems.addAll(stops);
+        notifyDataSetChanged();
+    }
+    public List<StopHolder> decorateMiles( List<Stop> stops) {
         ArrayList<StopHolder> sh = new ArrayList<>();
         Location locationGPS = null;
         LocationManager locationManager = (LocationManager) context.getApplicationContext().getSystemService(Context.LOCATION_SERVICE);
@@ -73,7 +115,7 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
                 e.printStackTrace();;
             }
         }
-        for(Stop s:data) {
+        for(Stop s:stops) {
             StopHolder h = new StopHolder("", s);
             if(locationGPS !=null) {
                 Location dest = new Location("");
@@ -83,14 +125,11 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
             }
             sh.add(h);
         }
-
         if(locationGPS !=null) {
             Collections.sort(sh, (s0, s1) -> Double.compare(s0.miles, s1.miles) );
         }
-        this.mItems.addAll(sh); //.subList(0, Math.min(sh.size(), 10)));
-        notifyDataSetChanged();
+        return  sh;
     }
-
     public void addItem(int position, Stop insertData) {
         StopHolder h = new StopHolder("", insertData);
         mItems.add(position, h);
@@ -175,7 +214,7 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
 
     @Override
     public void onBindViewHolder(final RecyclerView.ViewHolder holder, int position) {
-        StopHolder stop = mItems.get(position);
+        StopHolder stop = filtered.size()>0?filtered.get(position):mItems.get(position);
 
         if (holder instanceof HeaderViewHolder) {
             final HeaderViewHolder recyclerViewHolder = (HeaderViewHolder) holder;
@@ -221,7 +260,7 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
                         dest.setLongitude(stop.stop.stop_lon);
 
                         double miles = locationGPS.distanceTo(dest) / 1609.34449789;
-                        recyclerViewHolder.tv_recycler_item_1.setText("" + miles + " miles");
+                        recyclerViewHolder.tv_recycler_item_1.setText(String.format("%.4f miles", miles) );
                         recyclerViewHolder.tv_round_track.setText(String.format("%.1f", miles));
                     }
                 } catch (Exception e) {
@@ -229,16 +268,16 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
                 }
             }
 
-
-            recyclerViewHolder.tv_recycler_item_2.setText(stop.stop.stop_lat + " "  + stop.stop.stop_lon);
-            recyclerViewHolder.tv_recycler_item_3.setText("" + stop.stop.stop_name);
+            recyclerViewHolder.tv_recycler_item_2.setText("" + stop.stop.stop_name);
+            recyclerViewHolder.tv_recycler_item_3.setText(stop.stop.stop_lat + " "  + stop.stop.stop_lon);
             recyclerViewHolder.rela_round.startAnimation(aa);
 
             recyclerViewHolder.mView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    ArrayList<RouteDetails> routeDetails =  SQLSingleton.getInstance(context).getWrapper().getRoutesAtStop(recyclerViewHolder.data.stop_id);
-                    Snackbar.make(view, "Stop " + recyclerViewHolder.data.stop_id + " " + recyclerViewHolder.data.stop_name + " " + routeDetails.size(), Snackbar.LENGTH_LONG).setAction("Action", null).show();
+                    //ArrayList<RouteDetails> routeDetails =  SQLSingleton.getInstance(context).getWrapper().getRoutesAtStop(recyclerViewHolder.data.stop_id);
+                    //ArrayList<RouteDetails> routeDetails =  ScheduleContentProvider.getRoutesAtStop(context, recyclerViewHolder.data.stop_id);
+                    //Snackbar.make(view, "Stop " + recyclerViewHolder.data.stop_id + " " + recyclerViewHolder.data.stop_name + " " + routeDetails.size(), Snackbar.LENGTH_LONG).setAction("Action", null).show();
 
                     Intent intent = new Intent(context, RouteListActivity.class);
                     PersistableBundle bundle = new PersistableBundle();
@@ -258,7 +297,7 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
 
     @Override
     public int getItemViewType(int position) {
-        StopHolder s = mItems.get(position);
+        StopHolder s = filtered.size()>0?filtered.get(position):mItems.get(position);
         switch (s.item) {
             case HEADER:
                 return TYPE_HEADER;
@@ -271,21 +310,21 @@ public class RecyclerViewAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
 
     @Override
     public int getItemCount() {
-        return mItems.size();
+        return filtered.size()>0?filtered.size():mItems.size();
     }
 
 
     @Override
     public boolean onItemMove(int fromPosition, int toPosition) {
-        Collections.swap(mItems, fromPosition, toPosition);
-        notifyItemMoved(fromPosition, toPosition);
-        return true;
+        //Collections.swap(mItems, fromPosition, toPosition);
+        //otifyItemMoved(fromPosition, toPosition);
+        return false;
     }
 
     @Override
     public void onItemDismiss(final int position) {
-        mItems.remove(position);
-        notifyItemRemoved(position);
+        //mItems.remove(position);
+        //notifyItemRemoved(position);
 
 //        Snackbar.make(parentView, context.getString(R.string.item_swipe_dismissed), Snackbar.LENGTH_SHORT)
 //                .setAction(context.getString(R.string.item_swipe_undo), new View.OnClickListener() {

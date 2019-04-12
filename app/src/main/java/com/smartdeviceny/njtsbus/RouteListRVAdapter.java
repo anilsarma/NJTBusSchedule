@@ -14,6 +14,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.google.android.material.snackbar.Snackbar;
+import com.smartdeviceny.njtsbus.content_provider.ScheduleContentProvider;
 import com.smartdeviceny.njtsbus.route.RouteDetails;
 
 import java.util.ArrayList;
@@ -172,16 +173,22 @@ public class RouteListRVAdapter extends RecyclerView.Adapter<RecyclerView.ViewHo
             recyclerViewHolder.mView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    ArrayList<RouteDetails> routeDetails =  SQLSingleton.getInstance(context).getWrapper().getRoutesAtStop(recyclerViewHolder.data.stop_id);
-                    Snackbar.make(view, "Stop " + recyclerViewHolder.data.stop_id + " " + recyclerViewHolder.data.route_short_name + " " + routeDetails.size(), Snackbar.LENGTH_LONG).setAction("Action", null).show();
-                    Intent intent = new Intent(context, StopTimeActivity.class);
-                    PersistableBundle bundle = new PersistableBundle();
+                    //ArrayList<RouteDetails> routeDetails =  SQLSingleton.getInstance(context).getWrapper().getRoutesAtStop(recyclerViewHolder.data.stop_id);
+                    //ArrayList<RouteDetails> routeDetails = ScheduleContentProvider.getRoutesAtStop(context, recyclerViewHolder.data.stop_id);
+                    //Snackbar.make(view, "Stop " + recyclerViewHolder.data.stop_id + " " + recyclerViewHolder.data.route_short_name + " " + routeDetails.size(), Snackbar.LENGTH_LONG).setAction("Action", null).show();
+                    Intent intente = new Intent(context, StopTimeActivity.class);
+                    Intent intent = new Intent(context, BusesForRouteActivity.class);
+                    //Intent intent = new Intent(context, GoogleMapLiveTrackingActivity.class);
+
+                    //PersistableBundle bundle = new PersistableBundle();
 
                     intent.putExtra("stop_id",recyclerViewHolder.data.stop_id);
                     intent.putExtra("trip_id",recyclerViewHolder.data.trip_id);
                     intent.putExtra("route_id",recyclerViewHolder.data.route_id);
                     intent.putExtra("route_short_name",recyclerViewHolder.data.route_short_name);
                     context.startActivity(intent);
+
+
 
 
 //                    Intent intent = new Intent(context, ShareViewActivity.class);

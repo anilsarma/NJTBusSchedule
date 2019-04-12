@@ -27,6 +27,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.reflect.Constructor;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -105,10 +106,12 @@ public class Utils {
         Date date = new Date();
         return dateFormat.format(date);
     }
-    public static String formatPrintableTime(Date time, @Nullable String format)  {
-        SimpleDateFormat printFormat = new SimpleDateFormat(format ==null?"hh:mm a":format);
+
+    public static String formatPrintableTime(Date time, @Nullable String format) {
+        SimpleDateFormat printFormat = new SimpleDateFormat(format == null ? "hh:mm a" : format);
         return printFormat.format(time);
     }
+
     static public Date adddays(Date date, int days) {
         //if (days > 0 )
         {
@@ -157,7 +160,7 @@ public class Utils {
 
     static public ArrayList<HashMap<String, Object>> parseCursor(Cursor cursor) {
         ArrayList<HashMap<String, Object>> result = new ArrayList<>();
-        Log.d("parseCurseon", "count:" + result.size());
+        Log.d("parseCursor", "count:" + result.size());
         while (cursor.moveToNext()) {
             HashMap<String, Object> data = new HashMap<>();
             for (int i = 0; i < cursor.getColumnCount(); i++) {
@@ -173,6 +176,27 @@ public class Utils {
         }
         cursor.close();
         return result;
+    }
+
+    public static <E> ArrayList<E> parseCursor(Class<E> clasz, Cursor cursor) {
+        ArrayList<E> r = new ArrayList<>();
+        try {
+            ArrayList<HashMap<String, Object>> result = parseCursor(cursor);
+
+            for (HashMap<String, Object> item : result) {
+                try {
+                    Constructor<E> constructor = clasz.getConstructor(HashMap.class);
+                    E object = constructor.newInstance(item);
+                    r.add(object);
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }catch (Exception e) {
+            e.printStackTrace();
+        }
+        return r;
     }
 
     public static float pxFromDp(float dp, Context mContext) {
@@ -300,20 +324,21 @@ public class Utils {
         }
         return null;
     }
+
     public static boolean copyFileIfNewer(File src, File dest) {
-        if( dest ==null) {
-            return src!=null;
+        if (dest == null) {
+            return src != null;
         }
-        if( src.getAbsolutePath().equals(dest.getAbsolutePath())) {
+        if (src.getAbsolutePath().equals(dest.getAbsolutePath())) {
             return true;
         }
 
-        if( !src.exists()) {
+        if (!src.exists()) {
             return false;
         }
-        if( src.exists()) {
-            if( src.lastModified() < dest.lastModified()) {
-                if( src.length()  == dest.length()) {
+        if (src.exists()) {
+            if (src.lastModified() < dest.lastModified()) {
+                if (src.length() == dest.length()) {
                     return true;
                 }
             }
@@ -322,10 +347,10 @@ public class Utils {
         try {
             FileUtils.copyFile(src, dest);
             return true;
-        } catch(Exception e) {
+        } catch (Exception e) {
             try {
                 dest.delete();
-            } catch(Exception ee) {
+            } catch (Exception ee) {
 
             }
             e.printStackTrace();
@@ -333,11 +358,12 @@ public class Utils {
         }
 
     }
+
     public static boolean copyFileIfNewer(String src, String dest) {
-        if( dest ==null) {
-            return src!=null;
+        if (dest == null) {
+            return src != null;
         }
-        if( src.equals(dest)) {
+        if (src.equals(dest)) {
             return true;
         }
 
@@ -346,6 +372,7 @@ public class Utils {
         return copyFileIfNewer(srcFile, destFile);
 
     }
+
     public static String convertStreamToString(InputStream is) {
         return new Scanner(is).useDelimiter("\\A").next();
     }
@@ -370,11 +397,12 @@ public class Utils {
 
             os.write(content.getBytes());
             os.close();
-        } catch(Exception e) {
+        } catch (Exception e) {
 
         }
 
     }
+
     static public String getEntireFileContent(File file) {
         if (!file.exists()) {
             return "";
@@ -405,9 +433,9 @@ public class Utils {
             builder.setMinimumLatency(ms_frequency); // wait at least
             builder.setOverrideDeadline((int) (ms_frequency)); // maximum delay
         }
-       if(bundle !=null ) {
-           builder.setExtras(bundle);
-       }
+        if (bundle != null) {
+            builder.setExtras(bundle);
+        }
 
         //builder.setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED); // require unmetered network
         //builder.setRequiresDeviceIdle(true); // device should be idle
@@ -513,8 +541,7 @@ public class Utils {
     }
 
 
-
-//    private static void createNotificationChannel(Context context, String CHANNEL_ID) {
+    //    private static void createNotificationChannel(Context context, String CHANNEL_ID) {
 //        // Create the NotificationChannels, but only on API 26+ because
 //        // the NotificationChannels class is new and not in the support library
 //        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -541,7 +568,7 @@ public class Utils {
         }
     }
 
-//    private static NotificationCompat.Builder createNotificationGroup(Context context, String channelID, String group, String title, String msg) {
+    //    private static NotificationCompat.Builder createNotificationGroup(Context context, String channelID, String group, String title, String msg) {
 //        NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(context, channelID);
 //        mBuilder.setSmallIcon(R.mipmap.app_njs_icon);
 //        mBuilder.setGroup(group);
@@ -555,7 +582,7 @@ public class Utils {
         //mBuilder.setSmallIcon(R.mipmap.);
         mBuilder.setGroup(group.getUniqueID());
 
-        group_title=(group_title==null|| group_title.isEmpty())?group.getDescription():group_title;
+        group_title = (group_title == null || group_title.isEmpty()) ? group.getDescription() : group_title;
         mBuilder.setContentTitle(group_title);
         mBuilder.setContentText(group_title);// API < 24
 
@@ -585,7 +612,7 @@ public class Utils {
     public static NotificationCompat.Builder makeNotificationBuilder(Context context, NotificationGroup group, String title, String msg) {
 
         NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(context, group.getChannel().getUniqueID());
-       // mBuilder.setSmallIcon(R.mipmap.app_njs_icon);
+        // mBuilder.setSmallIcon(R.mipmap.app_njs_icon);
         mBuilder.setGroup(group.getUniqueID());
         mBuilder.setContentTitle(title).setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
         mBuilder.setContentText(msg);
@@ -633,7 +660,7 @@ public class Utils {
         createNotificationChannel(context, group.getChannel());
 
         final NotificationManager mNotificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-        NotificationCompat.Builder mBuilder = makeNotificationBuilder(context, group,  group.getDescription(), msg);
+        NotificationCompat.Builder mBuilder = makeNotificationBuilder(context, group, group.getDescription(), msg);
         mBuilder.setAutoCancel(true);
         Notification notification = mBuilder.build();
 
@@ -652,8 +679,8 @@ public class Utils {
         createNotificationChannel(context, group.getChannel());
 
         final NotificationManager mNotificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-        group_title = (group_title ==null || group_title.isEmpty())?group.getDescription():group_title;
-        NotificationCompat.Builder mBuilder = makeNotificationBuilder(context, group,  group_title, msg);
+        group_title = (group_title == null || group_title.isEmpty()) ? group.getDescription() : group_title;
+        NotificationCompat.Builder mBuilder = makeNotificationBuilder(context, group, group_title, msg);
         mBuilder.setStyle(new NotificationCompat.BigTextStyle().bigText(msg));
         mBuilder.setAutoCancel(true);
         Notification notification = mBuilder.build();
@@ -677,14 +704,15 @@ public class Utils {
         epoch_time += polling_time; // next polling time
         epoch_time = (epoch_time / polling_time) * polling_time; // to the next clock time.
         long diff = epoch_time - now.getTime();
-        if(diff > polling_time) {
-            diff = diff%polling_time;
+        if (diff > polling_time) {
+            diff = diff % polling_time;
 //            if(diff < 1000) {
 //                diff = polling_time;
 //            }
         }
         return diff;
     }
+
     public static void sleep(int ms) {
         try {
             Thread.sleep(ms);
@@ -717,6 +745,7 @@ public class Utils {
         return decodeToString(new String(fileContent));
 
     }
+
     public static String decodeToString(String inputFile) throws IOException {
         byte[] fileContent = inputFile.getBytes();
 
@@ -732,9 +761,9 @@ public class Utils {
 
     public static ArrayList<StopDistance> getNearbyStops(Location from, double miles, ArrayList<Stop> stops) {
         ArrayList<StopDistance> result = new ArrayList<>();
-        for(Stop st:stops) {
-            double distancemeters = from.distanceTo(st.location)/1609.34;
-            if(distancemeters < miles) {
+        for (Stop st : stops) {
+            double distancemeters = from.distanceTo(st.location) / 1609.34;
+            if (distancemeters < miles) {
                 result.add(new StopDistance(from, distancemeters, st));
             }
         }

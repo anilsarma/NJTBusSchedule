@@ -5,22 +5,20 @@ import android.content.pm.PackageManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
-import android.transition.Scene;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.smartdeviceny.njtsbus.content_provider.ScheduleContentProvider;
-import com.smartdeviceny.njtsbus.route.RouteDetails;
-import com.smartdeviceny.njtsbus.route.SQLWrapper;
-import com.smartdeviceny.njtsbus.route.Stop;
+import com.smartdeviceny.njtsbus.retrofit.ApiNJT;
+import com.smartdeviceny.njtsbus.retrofit.Bus;
+import com.smartdeviceny.njtsbus.retrofit.BusPredictions;
+import com.smartdeviceny.njtsbus.retrofit.Buses;
+import com.smartdeviceny.njtsbus.retrofit.NJTLiveBusService;
 import com.smartdeviceny.njtsbus.route.StopTimeDetails;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 
 import androidx.annotation.NonNull;
@@ -33,28 +31,34 @@ import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
-public class StopTimeActivity extends AppCompatActivity {
+public class BusesPredictionActivity extends AppCompatActivity {
 
     private SwipeRefreshLayout swipeRefreshLayout;
     private RecyclerView mRecyclerView;
     private FloatingActionButton fab;
-    private StopTimeRVAdapter adapter;
+    private BusesPredictionAdapter adapter;
     private int color = 0;
     private List<StopTimeDetails> data;
     private String insertData;
     private boolean loading;
     private int loadTimes;
+    NJTLiveBusService service;
 
-
-    String trip_id;
+    //String trip_id;
+    String bus_id;
     String route_short_name;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        service = ApiNJT.getNJTService();
         setContentView(R.layout.activity_recycler_view);
-        trip_id = getIntent().getStringExtra("trip_id");
+        //trip_id = getIntent().getStringExtra("trip_id");
+        bus_id = getIntent().getStringExtra("bus_id");
         route_short_name = getIntent().getStringExtra("route_short_name");
 
         Toolbar toolbar = findViewById(R.id.toolbar_recycler_view);
@@ -71,20 +75,7 @@ public class StopTimeActivity extends AppCompatActivity {
 
     private void initData() {
         data = new ArrayList<>();
-//        for (int i = 1; i <= 20; i++) {
-//            data.add(i + "");
-//        }
-        HashMap<String, Object> payload = new HashMap<>();
-        payload.put("stop_id", "");
-        payload.put("stop_code", "");
-        payload.put("stop_name", "");
-        //payload.put("stop_desc", stop_desc);
-        payload.put("stop_lat", 0.0);
-        payload.put("stop_lon", 0.0);
-        payload.put("zone_id", 0);
-        Stop stop = new Stop(payload);
-        //data.add(route);
-        doBackgroundLoad(trip_id);
+        doBackgroundLoad(bus_id);
         insertData = "0";
         loadTimes = 0;
     }
@@ -104,10 +95,10 @@ public class StopTimeActivity extends AppCompatActivity {
             mRecyclerView.setLayoutManager(linearLayoutManager);
         }
 
-        adapter = new StopTimeRVAdapter(this);
+        adapter = new BusesPredictionAdapter(this, route_short_name);
         mRecyclerView.setAdapter(adapter);
         adapter.addHeader();
-        adapter.setItems(route_short_name, data);
+        adapter.addEmptyBody();
         adapter.addFooter();
 
         fab.setOnClickListener(new View.OnClickListener() {
@@ -136,7 +127,6 @@ public class StopTimeActivity extends AppCompatActivity {
 
             @Override
             public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
-
             }
         };
         ItemTouchHelper mItemTouchHelper = new ItemTouchHelper(callback);
@@ -147,7 +137,7 @@ public class StopTimeActivity extends AppCompatActivity {
         swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
             public void onRefresh() {
-                doBackgroundLoad(trip_id);
+                doBackgroundLoad(bus_id);
             }
         });
 
@@ -160,35 +150,86 @@ public class StopTimeActivity extends AppCompatActivity {
         return (int) (displayMetrics.widthPixels / displayMetrics.density);
     }
 
-    private void doBackgroundLoad(String stop_id) {
+    class BusPredictionHolder {
+        public BusPredictions predictions;
+        public Bus            bus;
+
+        public BusPredictionHolder(Bus bus, BusPredictions predictions) {
+            this.predictions = predictions;
+            this.bus = bus;
+        }
+    }
+    ArrayList<BusPredictionHolder> busPredictions = new ArrayList<>();
+    HashSet<String> request = new HashSet<>();
+
+    private void doBackgroundLoad(String route_id) {
         new AsyncTask<String, Void, String>() {
             @Override
             protected String doInBackground(String... strings) {
-                Log.d("LOOP", "stop time activity ... ");
-
-                //SQLWrapper wrapper = SQLSingleton.getInstance(getApplicationContext()).getWrapper();
-
-                //ArrayList<StopTimeDetails> routes = wrapper.getTripStops(trip_id);
-                ArrayList<StopTimeDetails> routes = ScheduleContentProvider.getTripStops(getApplicationContext(), trip_id);
-                Collections.sort(routes, new Comparator<StopTimeDetails>() {
+                Log.d("LOOP", "prediction get buses ... ");
+                service.getBuses(route_short_name).enqueue(new Callback<Buses>() {
                     @Override
-                    public int compare(StopTimeDetails o1, StopTimeDetails o2) {
-                        return o1.arrival_time.compareTo(o2.arrival_time);
+                    public void onResponse(Call<Buses> call, Response<Buses> response) {
+                        if (response.isSuccessful()) {
+                            // for each bus get the data.
+                            for (Bus b : response.body().getBus()) {
+                                synchronized (request) {
+                                    request.add(b.getId());
+                                }
+                                getPrediction(b);
+                            }
+                        }
+                    }
+                    @Override
+                    public void onFailure(Call<Buses> call, Throwable t) {
+
                     }
                 });
-                System.err.println("here routes:" + routes.size());
-                new Handler(getApplicationContext().getMainLooper()).post(() -> {
-                    color %= 4;
-                    adapter.setItems(route_short_name, routes);
 
-                    adapter.setColor(++color);
-                    swipeRefreshLayout.setRefreshing(false);
-                    adapter.notifyDataSetChanged();
-                });
 
                 return "";
             }
         }.execute("");
     }
 
+    void check_flush(String bus_id) {
+        synchronized (request) {
+            request.remove(bus_id);
+            if (!request.isEmpty()) {
+                return;
+            }
+            new Handler(getApplicationContext().getMainLooper()).post(() -> {
+                color %= 4;
+                adapter.setItems(null);
+                synchronized (request) {
+                    for (BusPredictionHolder p : busPredictions) {
+                        adapter.addItems(p.predictions, p.bus);
+                    }
+                }
+
+                adapter.setColor(++color);
+                swipeRefreshLayout.setRefreshing(false);
+                adapter.notifyDataSetChanged();
+            });
+
+        }
+    }
+
+    void getPrediction(Bus bus) {
+        service.getPrediction(bus.getId()).enqueue(new Callback<BusPredictions>() {
+            @Override
+            public void onResponse(Call<BusPredictions> call, Response<BusPredictions> response) {
+                if (response.isSuccessful()) {
+                    BusPredictions buses = response.body();
+                    busPredictions.add(new BusPredictionHolder(bus, buses));
+                }
+                check_flush(bus.getId());
+            }
+
+            @Override
+            public void onFailure(Call<BusPredictions> call, Throwable t) {
+                check_flush(bus.getId());
+            }
+        });
+    }
 }

@@ -1,25 +1,24 @@
 package com.smartdeviceny.njtsbus;
 
 import android.Manifest;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
-import android.transition.Scene;
+import android.preference.PreferenceManager;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.View;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.smartdeviceny.njtsbus.content_provider.ScheduleContentProvider;
-import com.smartdeviceny.njtsbus.route.RouteDetails;
-import com.smartdeviceny.njtsbus.route.SQLWrapper;
+import com.smartdeviceny.njtsbus.retrofit.ApiNJT;
+import com.smartdeviceny.njtsbus.retrofit.Buses;
+import com.smartdeviceny.njtsbus.retrofit.NJTLiveBusService;
 import com.smartdeviceny.njtsbus.route.Stop;
 import com.smartdeviceny.njtsbus.route.StopTimeDetails;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 
@@ -33,28 +32,32 @@ import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
-public class StopTimeActivity extends AppCompatActivity {
+public class BusesForRouteActivity extends AppCompatActivity {
 
     private SwipeRefreshLayout swipeRefreshLayout;
     private RecyclerView mRecyclerView;
     private FloatingActionButton fab;
-    private StopTimeRVAdapter adapter;
+    private BusesForRouteAdapter adapter;
     private int color = 0;
     private List<StopTimeDetails> data;
     private String insertData;
     private boolean loading;
     private int loadTimes;
+    NJTLiveBusService service;
 
-
-    String trip_id;
+    //String trip_id;
     String route_short_name;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        service = ApiNJT.getNJTService();
         setContentView(R.layout.activity_recycler_view);
-        trip_id = getIntent().getStringExtra("trip_id");
+        //trip_id = getIntent().getStringExtra("trip_id");
         route_short_name = getIntent().getStringExtra("route_short_name");
 
         Toolbar toolbar = findViewById(R.id.toolbar_recycler_view);
@@ -62,7 +65,12 @@ public class StopTimeActivity extends AppCompatActivity {
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         }
-
+        SharedPreferences config =  PreferenceManager.getDefaultSharedPreferences(getApplicationContext());
+        if( route_short_name ==null || route_short_name.isEmpty()) {
+            route_short_name = config.getString("route_short_name", "");
+        } else {
+            config.edit().putString("route_short_name", route_short_name).commit();
+        }
         initData();
         initView();
 
@@ -84,7 +92,7 @@ public class StopTimeActivity extends AppCompatActivity {
         payload.put("zone_id", 0);
         Stop stop = new Stop(payload);
         //data.add(route);
-        doBackgroundLoad(trip_id);
+        doBackgroundLoad(route_short_name);
         insertData = "0";
         loadTimes = 0;
     }
@@ -104,10 +112,10 @@ public class StopTimeActivity extends AppCompatActivity {
             mRecyclerView.setLayoutManager(linearLayoutManager);
         }
 
-        adapter = new StopTimeRVAdapter(this);
+        adapter = new BusesForRouteAdapter(this, route_short_name);
         mRecyclerView.setAdapter(adapter);
         adapter.addHeader();
-        adapter.setItems(route_short_name, data);
+        adapter.addEmptyBody();
         adapter.addFooter();
 
         fab.setOnClickListener(new View.OnClickListener() {
@@ -147,7 +155,7 @@ public class StopTimeActivity extends AppCompatActivity {
         swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
             public void onRefresh() {
-                doBackgroundLoad(trip_id);
+                doBackgroundLoad(route_short_name);
             }
         });
 
@@ -160,31 +168,35 @@ public class StopTimeActivity extends AppCompatActivity {
         return (int) (displayMetrics.widthPixels / displayMetrics.density);
     }
 
-    private void doBackgroundLoad(String stop_id) {
+    private void doBackgroundLoad(String route_id) {
         new AsyncTask<String, Void, String>() {
             @Override
             protected String doInBackground(String... strings) {
                 Log.d("LOOP", "stop time activity ... ");
-
-                //SQLWrapper wrapper = SQLSingleton.getInstance(getApplicationContext()).getWrapper();
-
-                //ArrayList<StopTimeDetails> routes = wrapper.getTripStops(trip_id);
-                ArrayList<StopTimeDetails> routes = ScheduleContentProvider.getTripStops(getApplicationContext(), trip_id);
-                Collections.sort(routes, new Comparator<StopTimeDetails>() {
+                service.getBuses(route_id).enqueue(new Callback<Buses>() {
                     @Override
-                    public int compare(StopTimeDetails o1, StopTimeDetails o2) {
-                        return o1.arrival_time.compareTo(o2.arrival_time);
+                    public void onResponse(Call<Buses> call, Response<Buses> response) {
+                        if(response.isSuccessful()) {
+                            Buses buses = response.body();
+                            new Handler(getApplicationContext().getMainLooper()).post(() -> {
+                                color %= 4;
+                                adapter.setItems(buses);
+
+                                adapter.setColor(++color);
+                                swipeRefreshLayout.setRefreshing(false);
+                                adapter.notifyDataSetChanged();
+                            });
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<Buses> call, Throwable t) {
+
                     }
                 });
-                System.err.println("here routes:" + routes.size());
-                new Handler(getApplicationContext().getMainLooper()).post(() -> {
-                    color %= 4;
-                    adapter.setItems(route_short_name, routes);
 
-                    adapter.setColor(++color);
-                    swipeRefreshLayout.setRefreshing(false);
-                    adapter.notifyDataSetChanged();
-                });
+
+
 
                 return "";
             }

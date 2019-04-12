@@ -184,38 +184,19 @@ public class SQLWrapper implements Closeable {
     }
 
     public ArrayList<RouteDetails> getRoutesAtStop(String stop_id) {
-        ArrayList<RouteDetails> r = new ArrayList<>();
         if (sql == null) {
-            return r;
+            return new ArrayList<>();
         }
         SQLiteDatabase db = sql.getReadableDatabase();
-        try {
-            ArrayList<HashMap<String, Object>> stops = Utils.parseCursor(SQLHelper.getRoutesAt(db, stop_id));
-            for (HashMap<String, Object> stop : stops) {
-                r.add(new RouteDetails(stop));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-
-        }
-        return r;
+        return Utils.parseCursor(RouteDetails.class, SQLHelper.getRoutesAt(db, stop_id));
     }
+
     public ArrayList<StopTimeDetails> getTripStops(String trip_id) {
-        ArrayList<StopTimeDetails> r = new ArrayList<>();
         if (sql == null) {
-            return r;
+            return new ArrayList<>();
         }
         SQLiteDatabase db = sql.getReadableDatabase();
-        try {
-            ArrayList<HashMap<String, Object>> stops = Utils.parseCursor(SQLHelper.getTripStops(db, trip_id));
-            for (HashMap<String, Object> stop : stops) {
-                r.add(new StopTimeDetails(stop));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-
-        }
-        return r;
+        return Utils.parseCursor(StopTimeDetails.class, SQLHelper.getTripStops(db, trip_id));
     }
 
 

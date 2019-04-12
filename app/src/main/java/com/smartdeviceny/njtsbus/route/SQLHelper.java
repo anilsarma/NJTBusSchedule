@@ -17,6 +17,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.text.Format;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -291,9 +292,13 @@ public class SQLHelper extends SQLiteOpenHelper {
         return cursor;
     }
     static public Cursor getTripStops(SQLiteDatabase db, String trip_id) {
-
-        String sql = "select trip.trip_headsign, st.*, sp.stop_lat, sp.stop_lon, sp.stop_name from stop_times st, trips as trip, stops sp where sp.stop_id = st.stop_id and st.trip_id = {trip_id} and trip.trip_id=st.trip_id order by stop_sequence";
+        String sql_service_id = "select service_id from calendar_dates where date='{trip_date}'";
+        String sql = "select trip.trip_headsign, st.*, sp.stop_lat, sp.stop_lon, sp.stop_name from stop_times st, trips as trip, stops sp where sp.stop_id = st.stop_id and st.trip_id = {trip_id} and trip.trip_id=st.trip_id and trip.service_id in ( {service_sql} ) order by stop_sequence";
+        sql = String.format(sql, sql_service_id);
         sql = sql.replace("{trip_id}", trip_id);
+        sql = sql.replace("{service_sql}", sql_service_id);
+        sql = sql.replace("{trip_date}", Utils.formatPrintableTime(new Date(), "yyyyMMdd"));
+
         Cursor cursor = db.rawQuery(sql, null);
         return cursor;
     }

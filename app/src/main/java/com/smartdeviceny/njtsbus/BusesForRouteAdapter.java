@@ -14,6 +14,8 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import com.google.android.material.snackbar.Snackbar;
+import com.smartdeviceny.njtsbus.retrofit.Bus;
+import com.smartdeviceny.njtsbus.retrofit.Buses;
 import com.smartdeviceny.njtsbus.route.RouteDetails;
 import com.smartdeviceny.njtsbus.route.StopTimeDetails;
 
@@ -25,21 +27,21 @@ import java.util.List;
 import androidx.recyclerview.widget.RecyclerView;
 
 
-public class StopTimeRVAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> implements onMoveAndSwipedListener {
+public class BusesForRouteAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> implements onMoveAndSwipedListener {
 
-    class StopHolder {
+    class DataHolder {
       public String item="";
 
-      public StopTimeDetails route;
+      public Bus route;
       public double miles = 0;
 
-      public StopHolder(String item, StopTimeDetails stop) {
+      public DataHolder(String item, Bus stop) {
           this.route = stop;
           this.item = item;
       }
     };
     private Context context;
-    private List<StopHolder> mItems;
+    private List<DataHolder> mItems;
     private int color = 0;
     private View parentView;
 
@@ -49,19 +51,20 @@ public class StopTimeRVAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
     private final String FOOTER = "footer";
     private final String HEADER = "header";
 
-    public StopTimeRVAdapter(Context context) {
+    String route_short_name="";
+    public BusesForRouteAdapter(Context context, String route_short_name) {
         this.context = context;
+        this.route_short_name = route_short_name;
         mItems = new ArrayList();
     }
 
-    public void setItems(String route_short_name, List<StopTimeDetails> data) {
+    public void setItems(Buses buses) {
         this.mItems.clear();
-        ArrayList<StopHolder> sh = new ArrayList<>();
+        ArrayList<DataHolder> sh = new ArrayList<>();
         HashMap<String, String> unique = new HashMap<>();
-        for(StopTimeDetails s:data) {
+        for(Bus s:buses.getBus()) {
 
-            StopHolder h = new StopHolder(route_short_name, s);
-            h.route.route_short_name = route_short_name;
+            DataHolder h = new DataHolder(buses.getRt(), s);
             sh.add(h);
             //unique.put(s.route_short_name, s.route_short_name);
         }
@@ -69,37 +72,26 @@ public class StopTimeRVAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
         notifyDataSetChanged();
     }
 
-    public void addItem(int position, StopTimeDetails insertData) {
-        StopHolder h = new StopHolder("", insertData);
+    public void addItem(int position, Bus insertData) {
+        DataHolder h = new DataHolder("", insertData);
         mItems.add(position, h);
         notifyItemInserted(position);
     }
 
-    public void addItems(String route_short_name, List<StopTimeDetails> data) {
-        StopHolder h = new StopHolder(HEADER, null);
-        mItems.add(h);
-        ArrayList<StopHolder> sh = new ArrayList<>();
 
-        HashMap<String, String> unique = new HashMap<>();
-        for(StopTimeDetails s:data) {
-
-            StopHolder hh = new StopHolder(route_short_name, s);
-            hh.route.route_short_name = route_short_name;
-            sh.add(hh);
-            //unique.put(s.route_short_name, s.route_short_name);
-        }
-        sh.addAll(sh);
-        notifyItemInserted(mItems.size() - 1);
-    }
 
     public void addHeader() {
-        StopHolder h = new StopHolder(HEADER, null);
+        DataHolder h = new DataHolder(HEADER, null);
         mItems.add(h);
         notifyItemInserted(mItems.size() - 1);
     }
-
+    public void addEmptyBody() {
+        DataHolder h = new DataHolder("", new Bus());
+        mItems.add(h);
+        notifyItemInserted(mItems.size() - 1);
+    }
     public void addFooter() {
-        StopHolder h = new StopHolder(FOOTER, null);
+        DataHolder h = new DataHolder(FOOTER, null);
         mItems.add(h);
         notifyItemInserted(mItems.size() - 1);
     }
@@ -131,14 +123,14 @@ public class StopTimeRVAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
 
     @Override
     public void onBindViewHolder(final RecyclerView.ViewHolder holder, int position) {
-        StopHolder data = mItems.get(position);
+        DataHolder data = mItems.get(position);
 
         if (holder instanceof HeaderViewHolder) {
             final HeaderViewHolder recyclerViewHolder = (HeaderViewHolder) holder;
             recyclerViewHolder.header_text.setText("Footer " + position);
         }
         if (holder instanceof RecyclerViewHolder) {
-            final RecyclerViewHolder<StopTimeDetails> recyclerViewHolder = (RecyclerViewHolder<StopTimeDetails> ) holder;
+            final RecyclerViewHolder<Bus> recyclerViewHolder = (RecyclerViewHolder<Bus> ) holder;
             recyclerViewHolder.data = data.route;
             Animation animation = AnimationUtils.loadAnimation(context, R.anim.anim_recycler_item_show);
             recyclerViewHolder.mView.startAnimation(animation);
@@ -161,24 +153,24 @@ public class StopTimeRVAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
             } else {
                 recyclerViewHolder.rela_round.setBackgroundTintList(ColorStateList.valueOf(context.getResources().getColor(R.color.gray)));
             }
-            recyclerViewHolder.tv_recycler_item_1.setText( data.route.trip_headsign );
-            recyclerViewHolder.tv_round_track.setText( data.route.route_short_name);
+            recyclerViewHolder.tv_recycler_item_1.setText( data.route.toString() );
+            recyclerViewHolder.tv_round_track.setText( data.route.getBid());
 
-            recyclerViewHolder.tv_recycler_item_2.setText(data.route.arrival_time + " " + data.route.stop_name);
-            recyclerViewHolder.tv_recycler_item_3.setText("Trip #" + data.route.trip_id);
+            //recyclerViewHolder.tv_recycler_item_2.setText(data.route.arrival_time + " " + data.route.stop_name);
+            recyclerViewHolder.tv_recycler_item_3.setText("Trip #" + data.route.getRun());
             recyclerViewHolder.rela_round.startAnimation(aa);
 
             recyclerViewHolder.mView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
                     //ArrayList<RouteDetails> routeDetails =  SQLSingleton.getInstance(context).getWrapper().getRoutesAtStop(recyclerViewHolder.data.stop_id);
-                    Snackbar.make(view, "Stop " + recyclerViewHolder.data.stop_id + " " + recyclerViewHolder.data.trip_headsign + " " , Snackbar.LENGTH_LONG).setAction("Action", null).show();
-                    Intent intent = new Intent(context, GoogleMapLiveTrackingActivity.class);
+                    Snackbar.make(view, "Bus Id: " + recyclerViewHolder.data.getId() + " " + recyclerViewHolder.data.toString() + " " , Snackbar.LENGTH_LONG).setAction("Action", null).show();
+                    Intent intent = new Intent(context, BusesPredictionActivity.class);
 
                     PersistableBundle bundle = new PersistableBundle();
-
-                    intent.putExtra("stop_id",recyclerViewHolder.data.stop_id);
-                    intent.putExtra("trip_id",recyclerViewHolder.data.trip_id);
+                   intent.putExtra("bus_id", recyclerViewHolder.data.getId());
+                    intent.putExtra("route_short_name", route_short_name);
+                    //intent.putExtra("trip_id",recyclerViewHolder.data.trip_id);
 
                     context.startActivity(intent);
 
@@ -193,7 +185,7 @@ public class StopTimeRVAdapter extends RecyclerView.Adapter<RecyclerView.ViewHol
 
     @Override
     public int getItemViewType(int position) {
-        StopHolder s = mItems.get(position);
+        DataHolder s = mItems.get(position);
         switch (s.item) {
             case HEADER:
                 return TYPE_HEADER;

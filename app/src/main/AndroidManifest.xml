@@ -8,6 +8,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:theme="@style/AppTheme">
         <activity
             android:name=".MainActivity"
@@ -35,6 +36,27 @@
             android:label="Stop Times"
             android:parentActivityName=".RouteListActivity"
             android:theme="@style/AppTheme.Schedule" />
+        <activity
+            android:name=".BusesForRouteActivity"
+            android:label="Live Buses"
+            android:parentActivityName=".RouteListActivity"
+            android:theme="@style/AppTheme.Schedule" />
+        <activity
+            android:name=".BusesPredictionActivity"
+            android:label="Predictions Buses"
+            android:parentActivityName=".BusesForRouteActivity"
+            android:theme="@style/AppTheme.Schedule" />
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyBoIzv1e-aA-XI5EGj-TNgkjlL-HbEY39c" /> <!-- AIzaSyCAF5W8VR69bOc4LxZfyZsxgRDbmmAaI_A-->
+        <meta-data android:name="com.google.android.gms.maps.API_OPTIONS"
+            android:value="B3H9HE845CFHYG"/>
+        <activity
+            android:name=".GoogleMapLiveTrackingActivity"
+            android:label="Stop Times"
+            android:parentActivityName=".RouteListActivity"
+            android:theme="@style/AppTheme.Schedule" />
+
 
         <activity android:name=".SearchableActivity" >
             <intent-filter>
@@ -43,9 +65,14 @@
             <meta-data android:name="android.app.searchable"
                 android:resource="@xml/searchable"/>
         </activity>
-
+        <provider
+            android:name=".content_provider.ScheduleContentProvider"
+            android:authorities="com.smartdeviceny.njtsbus" >
+        </provider>
+        <uses-library android:name="org.apache.http.legacy" android:required="false"/>
     </application>
+
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-
+    <uses-permission android:name="android.permission.INTERNET" />
 </manifest>

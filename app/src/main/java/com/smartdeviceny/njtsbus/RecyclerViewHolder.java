@@ -16,6 +16,7 @@ public class  RecyclerViewHolder<T>  extends RecyclerView.ViewHolder {
     public TextView tv_recycler_item_1;
     public TextView tv_recycler_item_2;
     public TextView tv_recycler_item_3;
+    public TextView tv_recycler_item_4;
     public T data;
 
     RecyclerViewHolder(View itemView) {
@@ -27,5 +28,7 @@ public class  RecyclerViewHolder<T>  extends RecyclerView.ViewHolder {
         tv_recycler_item_1 = itemView.findViewById(R.id.tv_recycler_item_1);
         tv_recycler_item_2 = itemView.findViewById(R.id.tv_recycler_item_2);
         tv_recycler_item_3 = itemView.findViewById(R.id.tv_recycler_item_3);
+        tv_recycler_item_4 = itemView.findViewById(R.id.tv_recycler_item_4);
+
     }
 }

@@ -17,12 +17,12 @@ import android.view.View;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.snackbar.Snackbar;
-import com.smartdeviceny.njtsbus.route.SQLWrapper;
+import com.smartdeviceny.njtsbus.content_provider.ScheduleContentProvider;
+import com.smartdeviceny.njtsbus.retrofit.ApiNJT;
+import com.smartdeviceny.njtsbus.retrofit.Buses;
+import com.smartdeviceny.njtsbus.retrofit.NJTLiveBusService;
 import com.smartdeviceny.njtsbus.route.Stop;
-import com.smartdeviceny.njtsbus.route.Utils;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -41,6 +41,9 @@ import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
     private SwipeRefreshLayout swipeRefreshLayout;
@@ -52,10 +55,14 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private String insertData;
     private boolean loading;
     private int loadTimes;
+    private String currentFilter = "";
+    NJTLiveBusService service;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        service = ApiNJT.getNJTService();
+
         setContentView(R.layout.activity_main);
         //setContentView(R.layout.activity_recycler_view);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
@@ -90,13 +97,24 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 //                intent.setAction(Intent.ACTION_SEARCH);
 //                intent.putExtra(SearchManager.QUERY, query);
 //                startActivity(intent);
+                doBackgroundLoad(query);
                 return false;
             }
 
 
             @Override
             public boolean onQueryTextChange(String s) {
-                Snackbar.make(searchView, "Search Change  " + s, Snackbar.LENGTH_LONG).setAction("Action", null).show();
+                //doBackgroundLoad(s);
+                currentFilter = s;
+                new Handler(getApplicationContext().getMainLooper()).post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if( currentFilter.equals(s)) {
+                            doBackgroundLoad(s);
+                        }
+                    }
+                });
+                //nackbar.make(searchView, "Search Change  " + s, Snackbar.LENGTH_LONG).setAction("Action", null).show();
                 return false;
             }
         });
@@ -175,7 +193,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
     private void initData() {
         data = new ArrayList<>();
-        doBackgroundLoad();
+        doBackgroundLoad(null);
 //        for (int i = 1; i <= 20; i++) {
 //            data.add(i + "");
 //        }
@@ -220,6 +238,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             public void onClick(View view) {
                 LinearLayoutManager linearLayoutManager = (LinearLayoutManager) mRecyclerView.getLayoutManager();
                 //adapter.addItem(linearLayoutManager.findFirstVisibleItemPosition() + 1, insertData);
+                getBuses();
             }
         });
         if (ContextCompat.checkSelfPermission(getApplicationContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -253,7 +272,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             @Override
             public void onRefresh() {
                 // talk tot he looper ??
-                doBackgroundLoad();
+                doBackgroundLoad(null); // what about filters.
 
             }
         });
@@ -268,23 +287,33 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     }
 
 
-    private void doBackgroundLoad() {
+    private void doBackgroundLoad(String filter) {
         new AsyncTask<String, Void, String>() {
             @Override
             protected String doInBackground(String... strings) {
-                Log.d("LOOP", "rnninger ... ");
+                Log.d("MainAct", "doInBackground ... " + filter);
+                ArrayList<Stop> undstops =new ArrayList<Stop>();
+                if(filter == null || filter.isEmpty()) {
+                    undstops = ScheduleContentProvider.getAllStops(getApplicationContext(), filter);
+                }
 
-                SQLWrapper wrapper = SQLSingleton.getInstance(getApplicationContext()).getWrapper();
-
-                ArrayList<Stop> stops = wrapper.getStops();
-                System.err.println("here getStops:" + stops.size());
+               List<RecyclerViewAdapter.StopHolder> tmpStops = null;
+                if( !undstops.isEmpty()) {
+                    tmpStops = adapter.decorateMiles(undstops);
+                }
+                List<RecyclerViewAdapter.StopHolder> stops = tmpStops;
+               // System.err.println("here getStops:" + stops.size());
 
                 new Handler(getApplicationContext().getMainLooper()).post(() -> {
                     color %= 4;
-                    adapter.setItems(stops);
-
+                    if( stops !=null ) {
+                        adapter.setDecoratedItems(stops);
+                    } else {
+                        adapter.applyFilters(filter);
+                    }
                     adapter.setColor(++color);
                     swipeRefreshLayout.setRefreshing(false);
+
                     adapter.notifyDataSetChanged();
                 });
 
@@ -303,5 +332,26 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 //            }
 //        }, 2000);
 
+    }
+
+
+    void getBuses() {
+        service.getBuses("1").enqueue(new Callback<Buses>() {
+            @Override
+            public void onResponse(Call<Buses> call, Response<Buses> response) {
+                if(response.isSuccessful()) {
+                    Log.d("MAIN", "got" + response.body().getBus());
+                } else {
+                    Log.d("MAIN", "fail" + response);
+                    //Snackbar.make(get, "Replace with your own action", Snackbar.LENGTH_LONG).setAction("Action", null).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Buses> call, Throwable t) {
+                Log.d("MAIN", "call failed" + call);
+                t.printStackTrace();
+            }
+        });
     }
 }
