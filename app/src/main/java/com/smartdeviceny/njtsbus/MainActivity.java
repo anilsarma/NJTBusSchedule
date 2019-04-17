@@ -18,9 +18,11 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.snackbar.Snackbar;
 import com.smartdeviceny.njtsbus.content_provider.ScheduleContentProvider;
+import com.smartdeviceny.njtsbus.model.BusRoutesModelView;
 import com.smartdeviceny.njtsbus.retrofit.ApiNJT;
 import com.smartdeviceny.njtsbus.retrofit.Buses;
 import com.smartdeviceny.njtsbus.retrofit.NJTLiveBusService;
+import com.smartdeviceny.njtsbus.route.RouteStartStopDetails;
 import com.smartdeviceny.njtsbus.route.Stop;
 
 import java.util.ArrayList;
@@ -36,6 +38,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.lifecycle.ViewModelProviders;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -57,11 +60,14 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private int loadTimes;
     private String currentFilter = "";
     NJTLiveBusService service;
+    BusRoutesModelView busRoutesModelView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         service = ApiNJT.getNJTService();
+
+        busRoutesModelView = ViewModelProviders.of(this).get(BusRoutesModelView.class);
 
         setContentView(R.layout.activity_main);
         //setContentView(R.layout.activity_recycler_view);
@@ -194,20 +200,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private void initData() {
         data = new ArrayList<>();
         doBackgroundLoad(null);
-//        for (int i = 1; i <= 20; i++) {
-//            data.add(i + "");
-//        }
-        HashMap<String, Object> payload = new HashMap<>();
-        payload.put("stop_id", "");
-        payload.put("stop_code", "");
-        payload.put("stop_name", "");
-        //payload.put("stop_desc", stop_desc);
-        payload.put("stop_lat", 0.0);
-        payload.put("stop_lon", 0.0);
-        payload.put("zone_id", 0);
-        Stop stop = new Stop(payload);
-        //data.add(route);
-
         insertData = "0";
         loadTimes = 0;
     }
@@ -276,8 +268,6 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
             }
         });
-
-        // mRecyclerView.addOnScrollListener(scrollListener);
     }
 
 
@@ -293,10 +283,19 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             protected String doInBackground(String... strings) {
                 Log.d("MainAct", "doInBackground ... " + filter);
                 ArrayList<Stop> undstops =new ArrayList<Stop>();
+
                 if(filter == null || filter.isEmpty()) {
                     undstops = ScheduleContentProvider.getAllStops(getApplicationContext(), filter);
                 }
 
+                try {
+                    List<RouteStartStopDetails> details = ScheduleContentProvider.getStartStopBusRoutes(getApplicationContext(), "WASHINGTON BLVD", "RT-18");
+                    for (RouteStartStopDetails d : details) {
+                        Log.d("STSP", d.toString());
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
                List<RecyclerViewAdapter.StopHolder> tmpStops = null;
                 if( !undstops.isEmpty()) {
                     tmpStops = adapter.decorateMiles(undstops);
@@ -321,16 +320,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             }
         }.execute("");
 
-//        new Handler().postDelayed(new Runnable() {
-//            @Override
-//            public void run() {
-//                if (color > 4) {
-//                    color = 0;
-//                }
-//                adapter.setColor(++color);
-//                swipeRefreshLayout.setRefreshing(false);
-//            }
-//        }, 2000);
+
 
     }
 

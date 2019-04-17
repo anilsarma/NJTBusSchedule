@@ -22,8 +22,11 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+
+import androidx.annotation.Nullable;
 
 /**
  * Created by asarma on 11/2/2017.
@@ -225,11 +228,11 @@ public class SQLHelper extends SQLiteOpenHelper {
         ArrayList<String> njtr = new ArrayList<>();
         for (int i = 0; i < data.size(); i++) {
             HashMap<String, Object> entry = data.get(i);
-            if( entry == null) {
+            if (entry == null) {
                 continue;
             }
             Object value = entry.get(key);
-            if( value == null ) {
+            if (value == null) {
                 continue;
             }
             String d = value.toString();
@@ -286,11 +289,13 @@ public class SQLHelper extends SQLiteOpenHelper {
         startStations = u.toArray(new String[0]);
         return startStations;
     }
+
     static public Cursor getStops(SQLiteDatabase db) {
         String sql = "select * from stops";
         Cursor cursor = db.rawQuery(sql, null);
         return cursor;
     }
+
     static public Cursor getTripStops(SQLiteDatabase db, String trip_id) {
         String sql_service_id = "select service_id from calendar_dates where date='{trip_date}'";
         String sql = "select trip.trip_headsign, st.*, sp.stop_lat, sp.stop_lon, sp.stop_name from stop_times st, trips as trip, stops sp where sp.stop_id = st.stop_id and st.trip_id = {trip_id} and trip.trip_id=st.trip_id and trip.service_id in ( {service_sql} ) order by stop_sequence";
@@ -304,9 +309,56 @@ public class SQLHelper extends SQLiteOpenHelper {
     }
 
     static public Cursor getRoutesAt(SQLiteDatabase db, String stop_id) {
-        String sql = String.format("select distinct route.*, trip.route_id, rt.route_short_name from stop_times as route, trips as trip, routes as rt where route.stop_id = '%s' and route.trip_id = trip.trip_id and trip.route_id = rt.route_id",  stop_id);
+        String sql = String.format(
+                "select distinct route.*, trip.route_id, rt.route_short_name from stop_times as route, trips as trip, routes as rt where route.stop_id = '%s' and route.trip_id = trip.trip_id and trip.route_id = rt.route_id",
+                stop_id);
         Cursor cursor = db.rawQuery(sql, null);
         return cursor;
     }
 
+    static public Cursor getStartStopBusRoutes(SQLiteDatabase db, String start_station, String stop_station, @Nullable Date dt) {
+        String sql_stops  = "select stop_times.trip_id, stop_times.arrival_time,  stop_times.stop_id,  stop_times.stop_sequence, stops.stop_name " +
+        " from  stop_times, stops where stop_times.stop_id in ( select stop_id from stops where stop_name like '%{stop_name}%' ) " +
+        " and stops.stop_id = stop_times.stop_id ";
+
+
+        String starts = sql_stops.replace("{stop_name}", start_station);
+        String stops = sql_stops.replace("{stop_name}", stop_station);
+
+
+        String sql_query = "select * from ( {starts} ) as st, ( {stops}  ) as sp, " +
+               " trips, routes, calendar_dates " +
+                "  where " +
+                " st.trip_id = sp.trip_id and " +
+                " st.stop_sequence < sp.stop_sequence and " +
+                " st.trip_id = trips.trip_id and " +
+                " trips.route_id = routes.route_id   and " +
+                "  calendar_dates.service_id = trips.service_id and " +
+                " calendar_dates.date='{date}' ";
+
+        if( dt == null ) {
+            dt = new Date();
+        }
+        String sql = sql_query.replace("{starts}", starts).replace("{stops}", stops).replace("{date}",  Utils.formatPrintableTime(dt, "yyyyMMdd"));
+
+        Log.d("SQL", sql);
+        sql = sql.replace("\n", " ");
+        Cursor cursor = db.rawQuery(sql, null);
+        return cursor;
+    }
+
+
+    static String eval(Map<String, String> vars, String exp) {
+        boolean changed = true;
+        while (changed) {
+            for (Map.Entry<String, String> entry : vars.entrySet()) {
+                String variable = "{" + entry.getKey() + "}";
+                if (exp.contains(variable)) {
+                    exp = exp.replaceAll(variable, entry.getValue());
+                    changed = true;
+                }
+            }
+        }
+        return exp;
+    }
 }

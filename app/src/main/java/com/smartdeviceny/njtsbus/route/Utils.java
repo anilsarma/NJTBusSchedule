@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -36,6 +37,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.TimeZone;
 import java.util.zip.ZipEntry;
@@ -193,7 +195,59 @@ public class Utils {
                     e.printStackTrace();
                 }
             }
-        }catch (Exception e) {
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return r;
+    }
+
+    public static Object coerce(Class type, Object value) {
+        if( type.isAssignableFrom(value.getClass())) {
+            return value;
+        }
+        if(type.equals(Long.class)||type.equals(long.class)) {
+            return Long.parseLong(value.toString());
+        }
+        if(type.equals(Integer.class)||type.equals(int.class)) {
+            return Integer.parseInt(value.toString());
+        }
+        if(type.equals(Boolean.class)||type.equals(boolean.class)) {
+            return Boolean.parseBoolean(value.toString());
+        }
+        if(type.equals(String.class)||type.equals(CharSequence.class)) {
+            return  value.toString();
+        }
+        return  value;
+    }
+
+    public static <E> ArrayList<E> parseAnnotatedClass(Class<E> clasz, Cursor cursor) {
+        ArrayList<E> r = new ArrayList<>();
+        try {
+            ArrayList<HashMap<String, Object>> result = parseCursor(cursor);
+
+            for (HashMap<String, Object> item : result) {
+                try {
+                    Constructor<E> constructor = clasz.getConstructor();
+                    E object = constructor.newInstance();
+                    for (Map.Entry<String, Object> entry : item.entrySet()) {
+                        try {
+                            Field field = clasz.getDeclaredField(entry.getKey());
+                            if (field != null) {
+                                field.setAccessible(true);
+                                Object value = coerce(field.getType(), entry.getValue());
+                                field.set(object, value);
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                    r.add(object);
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return r;

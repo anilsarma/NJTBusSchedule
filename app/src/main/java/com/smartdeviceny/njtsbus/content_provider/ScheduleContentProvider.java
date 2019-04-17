@@ -21,17 +21,14 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.UriMatcher;
 import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteQueryBuilder;
 import android.net.Uri;
 import android.util.Log;
 
 import com.readystatesoftware.sqliteasset.SQLiteAssetHelper;
-import com.smartdeviceny.njtsbus.route.Route;
 import com.smartdeviceny.njtsbus.route.RouteDetails;
+import com.smartdeviceny.njtsbus.route.RouteStartStopDetails;
 import com.smartdeviceny.njtsbus.route.SQLHelper;
 import com.smartdeviceny.njtsbus.route.SQLiteLocalDatabase;
-import com.smartdeviceny.njtsbus.route.SqlUtils;
 import com.smartdeviceny.njtsbus.route.Stop;
 import com.smartdeviceny.njtsbus.route.StopTimeDetails;
 import com.smartdeviceny.njtsbus.route.Utils;
@@ -40,9 +37,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
+import java.util.Date;
+import java.util.List;
 
 import androidx.annotation.Nullable;
 
@@ -59,6 +55,8 @@ public class ScheduleContentProvider extends ContentProvider {
     private static final int ALL_STOPS = 30;
     private static final int TRIP_STOPS = 40;
     private static final int RECIPE_SEARCH = 50;
+    private static final int ROUTES_START_STOP = 60;
+
 
     private static final String AUTHORITY = "com.smartdeviceny.njtsbus";
 
@@ -71,9 +69,11 @@ public class ScheduleContentProvider extends ContentProvider {
         sURIMatcher.addURI(AUTHORITY, BASE_PATH + "/getRoutesAt", ROUTES_AT_STOP);
         sURIMatcher.addURI(AUTHORITY, BASE_PATH + "/getTripStops", TRIP_STOPS);
         sURIMatcher.addURI(AUTHORITY, BASE_PATH + "/allstops", ALL_STOPS);
+        sURIMatcher.addURI(AUTHORITY, BASE_PATH + "/getStartStopBusRoutes", ROUTES_START_STOP);
 
         sURIMatcher.addURI(AUTHORITY, BASE_PATH + "/search/*", RECIPE_SEARCH);
         sURIMatcher.addURI(AUTHORITY, BASE_PATH + "/*", RECIPE_ID);
+
     }
 
     @Override
@@ -108,6 +108,14 @@ public class ScheduleContentProvider extends ContentProvider {
         }else if (uriType == TRIP_STOPS) {
             return getTripStops(  Uri.decode(uri.getQueryParameter("trip_id")));
         }
+        else if (uriType == ROUTES_START_STOP) {
+            try {
+                return getStartStopBusRoutes(Uri.decode(uri.getQueryParameter("startStation")), Uri.decode(uri.getQueryParameter("stopStation")));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
 
 
 //        if (uriType == RECIPES) {
@@ -135,6 +143,11 @@ public class ScheduleContentProvider extends ContentProvider {
     }
     private Cursor getTripStops(String trip_id) {
         return SQLHelper.getTripStops(database.getReadableDatabase(), trip_id);
+    }
+
+
+    private Cursor getStartStopBusRoutes(String startStation, String stopStation) {
+        return SQLHelper.getStartStopBusRoutes(database.getReadableDatabase(), startStation, stopStation, new Date());
     }
 //    private Cursor findRecipes(String query) {
 //        SQLiteQueryBuilder queryBuilder = new SQLiteQueryBuilder();
@@ -235,7 +248,14 @@ public class ScheduleContentProvider extends ContentProvider {
         }
     }
 
-
+    public static List<RouteStartStopDetails> getStartStopBusRoutes(Context context, String startStation, String stopStation) {
+        Uri ingredientsUri = ScheduleContentProvider.CONTENT_URI.buildUpon().appendPath("getStartStopBusRoutes")
+                                                                .appendQueryParameter("startStation", startStation)
+                                                                .appendQueryParameter("stopStation", stopStation).build();
+        Cursor cursor = context.getContentResolver().query(ingredientsUri, null, null, null, null);
+        ArrayList<RouteStartStopDetails> stops =  Utils.parseAnnotatedClass(RouteStartStopDetails.class, cursor);
+        return  stops;
+    }
     public static ArrayList<Stop> getAllStops(Context context, @Nullable String filter) {
         Uri ingredientsUri = ScheduleContentProvider.CONTENT_URI.buildUpon().appendPath("allstops").build();
         Cursor cursor = context.getContentResolver().query(ingredientsUri, null, null, null, null);
