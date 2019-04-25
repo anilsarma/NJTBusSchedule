@@ -1,8 +1,6 @@
 package com.smartdeviceny.njtsbus;
 
-/**
- * Created by zhang on 2016.08.21.
- */
+
 public interface onMoveAndSwipedListener {
 
     boolean onItemMove(int fromPosition, int toPosition);
